@@ -4,13 +4,13 @@ from bs4 import BeautifulSoup
 import re
 
 from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import Rule
+from scrapy.spiders import CrawlSpider, Rule
 
 
 def write_email_output(email, url):
     myData = []
     #Check to see if it's a duplicate
-    with open('trial.csv', 'a+') as myFile:
+    with open('trial.csv', 'w') as myFile:
         writer = csv.writer(myFile)
         myData.append([email, url])
         writer.writerows(myData)
@@ -22,33 +22,33 @@ def check_csv_for_duplicates(email, path):
         for row in spamreader:
             trial_list.append(row[0])
         trial_set = set(trial_list)
-        trial_set_length = len(trial_set)
         trial_set.add(email)
-        return not trial_set_length == len(trial_set) #If the element is new this will return true, if it's a copy it'll return false
+        trial_set_length = len(trial_set)
+        return not trial_set_length == len(trial_list) #If the element is new this will return true, if it's a copy it'll return false
 
-class QuotesSpider(scrapy.Spider):
+class EmailsSpider(CrawlSpider):
     name = "Emails"
     depth = 100
     path = None;
+    urls = []
 
-    rules =[Rule(LinkExtractor(), follow=True, callback="parse")]
+    rules = [Rule(LinkExtractor(), follow=True, callback="parse_emails")]
 
     def start_requests(self):
-        urls =[]
         self.path = input("Please pass the path of the .csv file that contains your URLs: ")
         with open(self.path, 'r') as csvfile:
             spamreader = csv.reader(csvfile)
             for row in spamreader:
                 for entry in row:
                     if entry:
-                        urls.append(entry)
-        for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+                        self.urls.append(entry)
+        for url in self.urls:
+            yield scrapy.Request(url=url, callback=self.parse_emails)
 
 
 
 
-    def parse(self, response):
+    def parse_emails(self, response):
         self.depth -=1
         # If we've exceeded our depth limited search, then return.
         if self.depth<0:
